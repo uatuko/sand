@@ -1,0 +1,25 @@
+# .gitignore
+#
+
+# build
+.build/
+vendor/
+
+# code coverage
+.coverage.out
+
+# google-github-actions/auth@v2
+gha-creds-*.json
+
+# local settings
+.local.env
+.idea/
+.vscode/
+launch.json
+conf/local.conf.yaml
+
+# temporary files
+*.swp
+*.swo
+*~
+.tmp/
