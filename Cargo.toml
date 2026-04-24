@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ctrlc = "3"
+ctrlc = { version = "3", features = ["termination"] }
