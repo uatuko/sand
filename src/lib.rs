@@ -1,3 +1,5 @@
+pub mod dns;
+
 use std::{
     sync::{mpsc, Arc, Mutex},
     thread,

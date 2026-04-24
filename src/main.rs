@@ -1,5 +1,6 @@
 use std::{
     net::UdpSocket,
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -8,9 +9,22 @@ use std::{
     time::Duration,
 };
 
-use sand::ThreadPool;
+use sand::{dns, ThreadPool};
 
 fn main() {
+    let zone_path = std::env::args()
+        .nth(1)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("zone.db"));
+
+    let zone = match dns::zone::Zone::load(&zone_path) {
+        Ok(z) => Arc::new(z),
+        Err(e) => {
+            eprintln!("error loading zone file: {e}");
+            return;
+        }
+    };
+
     let socket = Arc::new(UdpSocket::bind("127.0.0.1:1053").unwrap());
     socket.set_nonblocking(true).unwrap();
     let pool = ThreadPool::new(4);
@@ -19,15 +33,26 @@ fn main() {
     let r = running.clone();
     ctrlc::set_handler(move || r.store(false, Ordering::SeqCst)).unwrap();
 
+    println!(
+        "Listening on {} (zone: {})",
+        socket.local_addr().unwrap(),
+        zone_path.display()
+    );
+
     let mut buf = [0u8; 65535];
     loop {
         match socket.recv_from(&mut buf) {
             Ok((n, src)) => {
                 let data = buf[..n].to_vec();
                 let socket = Arc::clone(&socket);
+                let zone = Arc::clone(&zone);
                 pool.execute(move || {
-                    if let Err(e) = socket.send_to(&data, src) {
-                        eprintln!("Send error: {e}");
+                    let response = dns::resolve(&data, &zone);
+                    if response.is_empty() {
+                        return;
+                    }
+                    if let Err(e) = socket.send_to(&response, src) {
+                        eprintln!("send error to {src}: {e}");
                     }
                 });
             }
@@ -37,7 +62,7 @@ fn main() {
                 }
                 thread::sleep(Duration::from_millis(100));
             }
-            Err(e) => eprintln!("Receive error: {e}"),
+            Err(e) => eprintln!("receive error: {e}"),
         }
     }
 
