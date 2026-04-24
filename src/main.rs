@@ -27,7 +27,7 @@ fn main() {
 
     let socket = Arc::new(UdpSocket::bind("127.0.0.1:1053").unwrap());
     socket.set_nonblocking(true).unwrap();
-    let pool = ThreadPool::new(4);
+    let pool = ThreadPool::new(thread::available_parallelism().map_or(1, |n| n.get()));
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
