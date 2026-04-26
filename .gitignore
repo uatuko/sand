@@ -4,6 +4,7 @@
 # build
 .build/
 vendor/
+target/
 
 # code coverage
 .coverage.out

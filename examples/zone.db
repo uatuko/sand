@@ -1,0 +1,39 @@
+; zone.db — example authoritative zone
+; Format: RFC 1035 §5 (BIND-style master file)
+
+$ORIGIN example.com.
+$TTL    3600
+
+; SOA — required first record (RFC 1035 §3.3.13)
+@   IN  SOA ns1.example.com. hostmaster.example.com. (
+            2026042301  ; serial   (YYYYMMDDnn)
+            3600        ; refresh
+            900         ; retry
+            604800      ; expire
+            300         ; minimum / negative-cache TTL (RFC 2308)
+        )
+
+; NS records (RFC 1035 §3.3.11)
+@       IN  NS      ns1.example.com.
+@       IN  NS      ns2.example.com.
+
+; A records (RFC 1035 §3.4.1)
+@       IN  A       192.168.254.102
+ns1     IN  A       192.168.254.103
+ns2     IN  A       192.168.254.104
+www     IN  A       192.168.254.105
+mail    IN  A       192.168.254.106
+
+; AAAA record (RFC 3596 §2.1)
+www     IN  AAAA    ::ffff:c0a8:fe69
+
+; MX records (RFC 1035 §3.3.9)
+@       IN  MX  10  mail.example.com.
+@       IN  MX  20  mail2.example.com.
+mail2   IN  A       192.168.254.107
+
+; CNAME record (RFC 1035 §3.3.1)
+ftp     IN  CNAME   www.example.com.
+
+; TXT record (RFC 1035 §3.3.14)
+@       IN  TXT     "v=spf1 mx -all"
