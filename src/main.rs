@@ -1,5 +1,4 @@
 use std::{
-    net::UdpSocket,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -9,9 +8,12 @@ use std::{
     time::Duration,
 };
 
-use sand::{dns, ThreadPool};
+use tokio::{io, net::UdpSocket};
 
-fn main() {
+use sand::dns;
+
+#[tokio::main]
+async fn main() {
     let zone_path = std::env::args()
         .nth(1)
         .map(PathBuf::from)
@@ -25,9 +27,7 @@ fn main() {
         }
     };
 
-    let socket = Arc::new(UdpSocket::bind("127.0.0.1:1053").unwrap());
-    socket.set_nonblocking(true).unwrap();
-    let pool = ThreadPool::new(thread::available_parallelism().map_or(1, |n| n.get()));
+    let socket = Arc::new(UdpSocket::bind("127.0.0.1:1053").await.unwrap());
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
@@ -42,22 +42,23 @@ fn main() {
 
     let mut buf = [0u8; 65535];
     loop {
-        match socket.recv_from(&mut buf) {
+        match socket.try_recv_from(&mut buf) {
             Ok((n, src)) => {
                 let data = buf[..n].to_vec();
                 let socket = Arc::clone(&socket);
                 let zone = Arc::clone(&zone);
-                pool.execute(move || {
+
+                tokio::spawn(async move {
                     let response = dns::resolve(&data, &zone);
                     if response.is_empty() {
                         return;
                     }
-                    if let Err(e) = socket.send_to(&response, src) {
+                    if let Err(e) = socket.send_to(&response, src).await {
                         eprintln!("send error to {src}: {e}");
                     }
                 });
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 if !running.load(Ordering::SeqCst) {
                     break;
                 }
